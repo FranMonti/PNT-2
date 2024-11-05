@@ -23,6 +23,8 @@ export default function Login() {
 
       if(user){
         alert('Login Conseguido')
+        console.log('test console: ', user)
+        global.userData = user;
         router.push('/(tabs)')
       }else{
         alert('Login Fallido')

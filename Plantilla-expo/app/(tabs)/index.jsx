@@ -1,11 +1,12 @@
-import { View, Text, ScrollView, Image, StyleSheet, FlatList } from 'react-native'
-
+import { View, Text, ScrollView, Image, StyleSheet, FlatList, Button } from 'react-native'
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 
 export default function HomeTabScreen() {
     
     const [users, setUsers] = useState([])
-
+    const [user, setUser] = useState(global.userData || {})
+    const router = useRouter()
 
     useEffect(() => {
       const fetchUsers = async () => {
@@ -20,13 +21,22 @@ export default function HomeTabScreen() {
 
       fetchUsers()
     }, [])
+        
     
-
 
   return (
     <View style={styles.container}>
         <Text style={styles.name}>Home Screen</Text>
-        <FlatList
+
+        {user.admin && (
+            <Button 
+                title="Carga Especialista"
+                onPress={() => router.push('/(cargaEspecialista)')}
+                style={styles.adminButton}
+            />
+        )}
+        
+        <FlatList 
             data={users}
             keyExtractor={(item) => item.login.uuid}
             renderItem={({item}) => (
