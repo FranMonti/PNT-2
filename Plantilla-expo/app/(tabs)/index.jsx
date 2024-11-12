@@ -1,18 +1,25 @@
-import { View, Text, ScrollView, Image, StyleSheet, FlatList } from 'react-native'
+import { View, Text, ScrollView, Image, StyleSheet, FlatList, Button } from 'react-native'
 
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
+import { router, useRouter } from 'expo-router';
+import { AuthContext } from '../../context/AuthContext';
 
 export default function HomeTabScreen() {
+
+    const {user} = useContext(AuthContext)
     
-    const [users, setUsers] = useState([])
+    
+    const [turnos, setTurnos] = useState([])
+    const [especialistas, setEspecialistas] = useState([])
+    const router = useRouter();
 
-
+//esto esta de ejemplo para que haya algo pero tiene que estar lo de los turnos o especialistas(crear las tablas en la mockapi)
     useEffect(() => {
       const fetchUsers = async () => {
         try {
-            const respuesta = await fetch('https://randomuser.me/api/?results=1500')
+            const respuesta = await fetch('https://randomuser.me/api/?results=5')
             const data = await respuesta.json()
-            setUsers(data.results)
+            setEspecialistas(data.results)
         } catch (error) {
             console.error('error: ', error)
         }
@@ -22,25 +29,62 @@ export default function HomeTabScreen() {
     }, [])
     
 
-
   return (
     <View style={styles.container}>
+        {
+            user.admin ? (
+                <>
         <Text style={styles.name}>Home Screen</Text>
-        <FlatList
-            data={users}
-            keyExtractor={(item) => item.login.uuid}
-            renderItem={({item}) => (
+        <Button title={"Añadir Especialista"} onPress={() => router.push('/nuevo_especialista')} />
+        <FlatList 
+        data={especialistas}
+        keyExtractor={(item) => item.id}
+        showsHorizontalScrollIndicator={false}
+        renderItem={({item}) => (
                 <View key={item.login.uuid} style={styles.userContainer}>
                     <Image source={{ uri: item.picture.large}} style={styles.image}/>
                     <View style={styles.infoContainer}>
                         <Text style={styles.name}>{item.name.first} {item.name.last}</Text>
-                        <Text style={styles.detalle}>Nacionalidad: {item.nat}</Text>
+                        <Text style={styles.detalle}>Especialidad: {item.especialidad}</Text>
                         <Text style={styles.detalle}>Edad: {item.dob.age}</Text>
                     </View>
                 </View>
             )}
-        >
-        </FlatList>
+        />
+                </>
+            ):(
+                <>
+        <Text style={styles.name}>Home Screen</Text>
+        <Button title={"Nuevo Turno"} onPress={() => router.push('/nuevo_turno')} />
+        <FlatList 
+        data={turnos}
+        keyExtractor={(item) => item.id}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        renderItem={({item}) => (
+                <View key={item.id} style={styles.userContainer}>
+                    <Image source={{ uri: item.picture.large}} style={styles.image}/>
+                    <View style={styles.infoContainer}>
+                        <Text style={styles.name}>Fecha: {item.fecha}</Text>
+                        <Text style={styles.detalle}>Hora: {item.hora}</Text>
+                        <Text style={styles.detalle}>Medico: {especialistas.find(especialista => especialista.id == item.idMedico)}</Text>
+                    </View>
+                </View>
+            )}
+        />
+        <View>
+            Mi Perfil
+            {user.dni}
+            {user.mail}
+            {user.telefono}
+            <Button>Editar</Button>
+            <Button>Cerrar Sesion</Button>
+            <Button>Cambiar Contraseña</Button>
+        </View>
+                </>
+            )
+        }
+        
     </View>
   )
 }
