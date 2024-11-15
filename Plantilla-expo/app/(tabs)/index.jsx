@@ -53,6 +53,8 @@ import {
     const [users, setUsers] = useState([]);
     const [user, setUser] = useState(global.userData || {});
     const router = useRouter();
+    
+    console.log('user:', user);
   
     useEffect(() => {
       const fetchUsers = async () => {

@@ -62,6 +62,7 @@ export default function Login() {
   
       if (user) {
         console.log('obtuvo user!');
+        global.userData = user;
         await AsyncStorage.setItem('PacienteId', user.id); 
         alert("Login Conseguido");
         router.push("/(tabs)");
