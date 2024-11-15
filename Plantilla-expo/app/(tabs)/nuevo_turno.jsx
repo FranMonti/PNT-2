@@ -1,41 +1,136 @@
-import React, { useState } from 'react';
-import { View, Text, FlatList, Image, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, FlatList, Image, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import Icono from 'react-native-vector-icons/Ionicons';
-import { Calendar } from 'react-native-calendars'; 
+import { Calendar } from 'react-native-calendars';
 
-const datosDoctores = {
-  'Ginecología': [
-    { id: '1', nombre: 'Dr. Ana López', distancia: '0.3 km' },
-    { id: '2', nombre: 'Dr. Carlos Martínez', distancia: '0.7 km' },
-    { id: '3', nombre: 'Dra. Sofia Ramírez', distancia: '1.1 km' },
-  ],
-  'Cardiología': [
-    { id: '1', nombre: 'Dr. Javier Gómez', distancia: '0.4 km' },
-    { id: '2', nombre: 'Dra. Lucia Fernández', distancia: '1.2 km' },
-    { id: '3', nombre: 'Dr. Roberto Torres', distancia: '2.0 km' },
-  ],
-  'Dermatología': [
-    { id: '1', nombre: 'Dr. Hugo Sánchez', distancia: '0.5 km' },
-    { id: '2', nombre: 'Dra. Paula Díaz', distancia: '1.5 km' },
-  ],
-  'Pediatría': [
-    { id: '1', nombre: 'Dra. Elena Castro', distancia: '0.6 km' },
-    { id: '2', nombre: 'Dr. Samuel Rivera', distancia: '1.8 km' },
-  ],
+const imagenesPorEspecialidad = {
+  'Ginecologia': require('../(tabs)/especialidad_imagenes/ginecologia.png'),
+  'Cardiologia': require('../(tabs)/especialidad_imagenes/cardiologia.png'),
+  'Dermatologia': require('../(tabs)/especialidad_imagenes/dermatologia.png'),
+  'Pediatria': require('../(tabs)/especialidad_imagenes/pediatria.png'),
 };
 
 export default function NuevoTurno() {
   const [especialidadSeleccionada, setEspecialidadSeleccionada] = useState(null);
   const [mostrarDoctores, setMostrarDoctores] = useState(false);
-  const [mostrarCalendario, setMostrarCalendario] = useState(false); 
+  const [mostrarCalendario, setMostrarCalendario] = useState(false);
   const [titulo, setTitulo] = useState('Nuevo Turno');
+  const [especialistas, setEspecialistas] = useState([]);
+  const [especialidadesDisponibles, setEspecialidadesDisponibles] = useState([]);
+  const [doctorSeleccionado, setDoctorSeleccionado] = useState(null);
+  const [diasHabilitados, setDiasHabilitados] = useState({});
+  const [busqueda, setBusqueda] = useState('');
 
-  const especialidades = [
-    { id: '1', especialidad: 'Ginecología', imagen: require('../(tabs)/especialidad_imagenes/ginecologia.png') },
-    { id: '2', especialidad: 'Cardiología', imagen: require('../(tabs)/especialidad_imagenes/cardiologia.png') },
-    { id: '3', especialidad: 'Dermatología', imagen: require('../(tabs)/especialidad_imagenes/dermatologia.png') },
-    { id: '4', especialidad: 'Pediatría', imagen: require('../(tabs)/especialidad_imagenes/pediatria.png') },
-  ];
+  const nombreDiaANumero = {
+    'Domingo': 0,
+    'Lunes': 1,
+    'Martes': 2,
+    'Miércoles': 3,
+    'Jueves': 4,
+    'Viernes': 5,
+    'Sábado': 6
+  };
+
+  const getEspecialistas = async () => {
+    try {
+      const response = await fetch('https://672aac9d976a834dd024100f.mockapi.io/api/especialistas/especialistas');
+      const data = await response.json();
+      setEspecialistas(data);
+      
+      if(data) {
+        const especialidadesUnicas = [...new Set(
+          data
+            .filter(especialista => especialista.activo)
+            .map(especialista => especialista.especialidad)
+        )];
+
+        const especialidadesFormateadas = especialidadesUnicas.map((especialidad, index) => ({
+          id: String(index + 1),
+          especialidad: especialidad,
+          imagen: imagenesPorEspecialidad[especialidad] || null
+        }));
+
+        setEspecialidadesDisponibles(especialidadesFormateadas);
+      } else {
+        alert('Fallo get profesionales');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Error en la obtención de profesionales');
+    }
+  };
+
+  useEffect(() => {
+    getEspecialistas();
+  }, []);
+
+  const generarDiasHabilitados = (diasAtencion) => {
+    const fechasHabilitadas = {};
+    const hoy = new Date();
+    
+    for (let i = 0; i < 90; i++) {
+      const fecha = new Date(hoy);
+      fecha.setDate(hoy.getDate() + i);
+      const fechaStr = fecha.toISOString().split('T')[0];
+      const diaSemana = fecha.getDay();
+  
+      const esDiaHabilitado = diasAtencion.some(dia => 
+        nombreDiaANumero[dia] === diaSemana
+      );
+  
+      if (esDiaHabilitado) {
+        fechasHabilitadas[fechaStr] = {
+          selected: false,
+          marked: true,
+          dotColor: '#4CAF50',
+          activeOpacity: 0,
+          disableTouchEvent: false
+        };
+      } else {
+        fechasHabilitadas[fechaStr] = {
+          disabled: true,
+          disableTouchEvent: true,
+          textColor: '#d9e1e8',
+          activeOpacity: 0
+        };
+      }
+    }
+    return fechasHabilitadas;
+  };
+  
+
+  const obtenerDoctoresPorEspecialidad = (especialidad) => {
+    return especialistas
+      .filter(especialista => 
+        especialista.especialidad === especialidad && 
+        especialista.activo
+      )
+      .map(especialista => ({
+        id: especialista.id,
+        nombre: `Dr. ${especialista.name} ${especialista.apellido}`,
+        diasAtencion: especialista.diasAtencion,
+        distancia: '0.5 km'
+      }));
+  };
+
+  const handleDayPress = (day) => {
+    if (diasHabilitados[day.dateString]) {
+      const nuevasFechas = { ...diasHabilitados };
+      Object.keys(nuevasFechas).forEach(fecha => {
+        if (nuevasFechas[fecha].selected) {
+          nuevasFechas[fecha] = {
+            ...nuevasFechas[fecha],
+            selected: false
+          };
+        }
+      });
+      nuevasFechas[day.dateString] = {
+        ...nuevasFechas[day.dateString],
+        selected: true
+      };
+      setDiasHabilitados(nuevasFechas);
+    }
+  };
 
   const manejarSeleccionEspecialidad = (especialidad) => {
     setEspecialidadSeleccionada(especialidad);
@@ -43,20 +138,30 @@ export default function NuevoTurno() {
     setTitulo(especialidad);
   };
 
+  const alternarCalendario = (doctor) => {
+    setDoctorSeleccionado(doctor);
+    const doctorInfo = especialistas.find(esp => esp.id === doctor.id);
+    if (doctorInfo && doctorInfo.diasAtencion) {
+      const diasHabilitados = generarDiasHabilitados(doctorInfo.diasAtencion);
+      setDiasHabilitados(diasHabilitados);
+    }
+    setMostrarCalendario(true);
+  };
+
   const atras = () => {
-    setMostrarCalendario(false); 
-    if (mostrarDoctores) {
+    if (mostrarCalendario) {
+      setMostrarCalendario(false);
+      setDoctorSeleccionado(null);
+    } else if (mostrarDoctores) {
       setMostrarDoctores(false);
       setEspecialidadSeleccionada(null);
       setTitulo('Nuevo Turno');
-    } 
+    }
   };
 
-  const alternarCalendario = () => {
-    setMostrarCalendario(!mostrarCalendario);
-    console.log(!mostrarCalendario);
-    
-  };
+  const especialidadesFiltradas = especialidadesDisponibles.filter(
+    esp => esp.especialidad.toLowerCase().includes(busqueda.toLowerCase())
+  );
 
   return (
     <View style={styles.contenedor}>
@@ -69,15 +174,20 @@ export default function NuevoTurno() {
         style={styles.inputBusqueda}
         placeholder="Buscar especialidad"
         placeholderTextColor="#888"
+        value={busqueda}
+        onChangeText={setBusqueda}
       />
 
       {!mostrarDoctores ? (
         <FlatList
-          data={especialidades}
+          data={especialidadesFiltradas}
           keyExtractor={(item) => item.id}
           numColumns={2}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.tarjeta} onPress={() => manejarSeleccionEspecialidad(item.especialidad)}>
+            <TouchableOpacity 
+              style={styles.tarjeta} 
+              onPress={() => manejarSeleccionEspecialidad(item.especialidad)}
+            >
               <View style={styles.contenidoTarjeta}>
                 {item.imagen && <Image source={item.imagen} style={styles.imagenPlaceholder} />}
                 <Text style={styles.textoEspecialidad}>{item.especialidad}</Text>
@@ -89,7 +199,7 @@ export default function NuevoTurno() {
         <View style={styles.contenedorDoctores}>
           <Text style={styles.tituloEspecialidad}>{especialidadSeleccionada}</Text>
           <FlatList
-            data={datosDoctores[especialidadSeleccionada]}
+            data={obtenerDoctoresPorEspecialidad(especialidadSeleccionada)}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <View style={styles.tarjetaDoctor}>
@@ -99,7 +209,10 @@ export default function NuevoTurno() {
                   <TouchableOpacity style={styles.boton}>
                     <Text style={styles.textoBoton}>Adjuntar</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.boton} onPress={alternarCalendario}>
+                  <TouchableOpacity 
+                    style={styles.boton} 
+                    onPress={() => alternarCalendario(item)}
+                  >
                     <Text style={styles.textoBoton}>Ver Agenda</Text>
                   </TouchableOpacity>
                 </View>
@@ -113,13 +226,32 @@ export default function NuevoTurno() {
         <View style={styles.contenedorCalendario}>
           <Calendar
             current={new Date().toISOString().split('T')[0]}
-            onDayPress={(day) => { console.log('Día seleccionado', day); }}
+            minDate={new Date().toISOString().split('T')[0]}
+            markedDates={diasHabilitados}
+            onDayPress={handleDayPress}
             monthFormat={'MMMM yyyy'}
             onMonthChange={(month) => { console.log('Mes cambiado', month); }}
+            disableAllTouchEventsForDisabledDays={true}
+            theme={{
+              textDisabledColor: '#d9e1e8',
+              selectedDayBackgroundColor: '#4CAF50',
+              selectedDayTextColor: '#ffffff',
+              todayTextColor: '#4CAF50',
+              dayTextColor: '#2d4150',
+              textMonthFontWeight: 'bold',
+              arrowColor: '#4CAF50',
+            }}
           />
-          <Text style={styles.etiquetaMes}>
-            {new Date().toLocaleString('default', { month: 'long' })} {new Date().getFullYear()}
-          </Text>
+          {doctorSeleccionado && (
+            <View style={styles.infoDoctor}>
+              <Text style={styles.nombreDoctorCalendario}>
+                {doctorSeleccionado.nombre}
+              </Text>
+              <Text style={styles.diasAtencion}>
+                Días de atención: {doctorSeleccionado.diasAtencion.join(', ')}
+              </Text>
+            </View>
+          )}
         </View>
       )}
     </View>
@@ -152,6 +284,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     marginBottom: 10,
+    backgroundColor: '#fff',
   },
   tarjeta: {
     backgroundColor: '#b3e5fc',
@@ -160,43 +293,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     margin: 5,
-    width: '45%',
+    width: '47%',
     aspectRatio: 1,
+    elevation: 3,
   },
   contenidoTarjeta: {
     alignItems: 'center',
     padding: 10,
   },
   imagenPlaceholder: {
-    width: 100,
-    height: 100,
+    width: 80,
+    height: 80,
     marginBottom: 5,
+    borderRadius: 40,
   },
   textoEspecialidad: {
     fontSize: 16,
-    marginTop: 5,
+    fontWeight: '500',
+    textAlign: 'center',
   },
   contenedorDoctores: {
-    marginTop: 20,
+    marginTop: 10,
   },
   tituloEspecialidad: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 10,
+    color: '#2d4150',
   },
   tarjetaDoctor: {
-    backgroundColor: '#b3e5fc',
+    backgroundColor: '#fff',
     borderRadius: 10,
-    padding: 10,
+    padding: 15,
     marginBottom: 10,
+    elevation: 2,
   },
   nombreDoctor: {
     fontSize: 16,
     fontWeight: 'bold',
+    color: '#2d4150',
   },
   distanciaDoctor: {
     fontSize: 14,
-    color: '#888',
+    color: '#666',
+    marginTop: 5,
   },
   contenedorBotones: {
     flexDirection: 'row',
@@ -204,26 +344,37 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   boton: {
-    backgroundColor: '#fff',
+    backgroundColor: '#4CAF50',
     borderRadius: 5,
     padding: 10,
-    width: '45%',
+    width: '48%',
     alignItems: 'center',
   },
   textoBoton: {
-    color: '#007aff',
+    color: '#fff',
+    fontWeight: '500',
   },
   contenedorCalendario: {
-    marginTop: 10, 
+    marginTop: 10,
     padding: 10,
     backgroundColor: '#fff',
     borderRadius: 8,
     elevation: 2,
   },
-  etiquetaMes: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
+  infoDoctor: {
+    padding: 10,
     marginTop: 10,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 5,
+  },
+  nombreDoctorCalendario: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2d4150',
+    marginBottom: 5,
+  },
+  diasAtencion: {
+    fontSize: 14,
+    color: '#666',
   },
 });

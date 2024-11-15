@@ -1,11 +1,9 @@
 import { Tabs } from 'expo-router'
-import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { Colors } from '../../constants/Colors'
 import { useColorScheme } from 'react-native'
 
 export default function TabLayout() {
-    const [user, setUser] = useState(global.userData || {})
     const colorScheme = useColorScheme()
 
     return (
