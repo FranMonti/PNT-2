@@ -222,6 +222,8 @@ export default function NuevoTurno() {
         </View>
       )}
 
+      console.log('asd')
+
       {mostrarCalendario && (
         <View style={styles.contenedorCalendario}>
           <Calendar
